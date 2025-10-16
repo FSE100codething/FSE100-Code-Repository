@@ -95,3 +95,90 @@ brick.MoveMotor('A', 50) %Motor A forward at Half Speed
 pause(1); %let motor turn for 1 second.
 
 brick.MoveMotor('AB', 10); %Moves both Motor A and Motor B at 10%
+
+brick.MoveMotor('A', -50);%Moves Motor A backwards at half-speed (50%).
+
+brick.MoveMotor('AB', 0); %Stops both Motor A and Motor B.
+
+%StopMotor
+%Stops a given motor, with 2 optional types of braking.
+
+brick.Stopmotor(MotorPort,BrakeType)
+%MotorPort is the Letter(s) of the port that a motor is connected to, in
+%single quotes: 'A','B','C','D', or a combination of such.
+%BrakeType (optional) can either be the word 'Coast' or 'Brake' in single
+%quotes.
+
+%'Coast' allows the motor to drift to a stop.
+%'Brake' performs a hard stop, and the brick tries to maintain that
+%position. Over-use of this mode will cause the battery of the EV3 to drain
+%quickly.
+%if no BrakeType is given, code will default to Coast.
+
+brick.StopMotor('A', 'Coast'); %Motor A drifts to stop.
+
+%StopAllMotors
+%Stops all motors connected to a brick.
+brick.StopAllMotors('Brake'); %Hard stop, all motors.
+
+%---------------
+%ROTATE BY ANGLE
+%---------------
+%These functions allow a motor to be moved by precise angles.
+%MoveMotorAngleRel
+%Move a motor in a certain angle relative to it's current position.
+
+brick.MoveMotorAngleRel(MotorPort, Speed, Angle, BrakeType);
+
+%Speed is the desired speed of the motor, a positive number between 1 and
+%100. Negative numbers cause the motor to rotate in the opposite direction.
+% A SPEED OF 0 MUST NOT BE USED IN THIS FUNCTION!
+
+%Angle is a positive integer in degrees of how much the motor should move.
+%Negative numbers have no effect on this function.
+
+%For proper operation, this function must always be followed by a call to 
+% the "WaitForMotor" function. Commands to other motors may be given first 
+% (for simultaneous operation) but a "WaitForMotor" call must be completed 
+% before a new command is given to the motor.
+
+brick.MoveMotorAngleRel('A', 20, -90, 'Brake') %Reverse motor A, 90 degrees
+% with 20% speed, Hard stop.
+
+brick.WaitForMotor('A'); %Wait for motor to complete motion
+
+%MoveMotorAngleAbs
+%Move a motor a certain absolute angle. Zero Degrees is wherever the
+%motor starts at reset (Refer to ResetMotorAngle).
+
+brick.MoveMotorAngleAbs(MotorPort,Speed,Angle,BrakeType)
+
+%Refer to brick.MoveMotorAngleRel instructions for Speed/Angle.
+
+%Move to 0 position.
+brick.MoveMotorAngleAbs('A',20,0,'Brake');
+
+%Move to 90 position.
+brick.MoveMotorAngleAbs('A',20,90,'Brake');
+
+%Move to -90 position.
+brick.MoveMotorAngleAbs('A',20,-90,'Brake');
+
+%Wait for motor to complete motion/angle rotation.
+brick.WaitForMotor('A');
+
+%WaitForMotor
+%Waits for a motor to complete its angle rotation. Should only use for
+%MoveMotorAngleRel and MoveMotorAngleAbs commands.
+
+brick.WaitForMotor(MotorPort);
+
+%ResetMotorAngle
+%Resets the absolute position of a motor to 0. The current position becomes
+%the new '0' Angle.
+
+brick.ResetMotorAngle(MotorPort);
+
+%For the best results, include the function at the beginning of your
+%program, called once for each connected motor.
+
