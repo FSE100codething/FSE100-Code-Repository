@@ -1,4 +1,4 @@
-colorcheck = brick.SetColorMode(1,4);
+colorcheck = brick.SetColorMode(1,2);
 while 1
 
 if (colorcheck == 5)
