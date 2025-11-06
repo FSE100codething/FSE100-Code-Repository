@@ -1,4 +1,5 @@
 global key
+global gripclaw
 colorcheck = brick.SetColorMode(1,2);
 while 1
 if ((colorcheck == 2) || (colorcheck == 3) || (colorcheck == 4))
@@ -16,8 +17,15 @@ switch key
     case 'rightarrow'
     disp('right arrow pressed!');
     brick.MoveMotor('B', 20);
+    case 'z'
+     disp('z button pressed!');
+     brick.MoveMotor('C', 20);
+     case 'x'
+     disp('x button pressed!');
+     brick.MoveMotor('C', -20);
     case ((colorcheck~= 2) && (colorcheck~=3) && (colorcheck~=4))
     break;
+
 end
 end
 end
