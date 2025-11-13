@@ -1,38 +1,43 @@
 %% --- Initialize Brick and Motors ---
-% brick = ConnectBrick('GROUP-4');
+%brick = ConnectBrick('GROUP-4');
 leftMotor = 'A';
 rightMotor = 'B';
+clawMotor = 'C'; % claw is on port C
 
 %% --- Initialize Sensors ---
-usLeftPort = 1;       
-touchRightPort = 3;   
-colorPort = 2;        
+usLeftPort = 1;
+touchRightPort = 3;
+colorPort = 2;
 
-brick.SetColorMode(colorPort,2);  
+brick.SetColorMode(colorPort,2);
 
 %% --- Motor Settings ---
-forwardSpeed = 50;
+forwardSpeed = 40;
 turnSpeed = 20;
 manualSpeed = 20;
+clawSpeed = 15; % speed for claw up/down
 
 %% --- Ultrasonic Thresholds ---
-openSpaceThreshold = 70;  
-closeDistanceThreshold = 40; 
+openSpaceThreshold = 70;
+closeDistanceThreshold = 50;
 
-%% --- Initialize Manual Control Keys ---
-manualKeys = struct('w',false,'a',false,'s',false,'d',false);
+%% --- Manual Keys ---
+manualKeys = struct('w',false,'a',false,'s',false,'d',false, ...
+                    'z',false,'x',false); % z = up, x = down
 
-% Create a figure for capturing key presses
+% Capture key presses
 hFig = figure('Name','Manual Control','KeyPressFcn',@keyPress,'KeyReleaseFcn',@keyRelease);
 
-disp('🤖 Starting continuous loop with automatic/manual mode...');
+disp('🤖 Running robot...');
 
-%% --- Continuous Loop ---
+%% --- Main Loop ---
 while true
     colorcheck = brick.ColorCode(colorPort);
 
-    if ismember(colorcheck,[2,3,4,5]) % Manual mode
-        % Move based on pressed keys
+
+    if ismember(colorcheck,[2,3,4]) % --- Manual mode only ---
+        
+        % Drive control
         if manualKeys.w
             brick.MoveMotor('AB',manualSpeed);
         elseif manualKeys.s
@@ -46,6 +51,16 @@ while true
         else
             brick.StopMotor('AB');
         end
+
+        % --- Claw up/down ---
+        if manualKeys.z
+            brick.MoveMotor(clawMotor, clawSpeed);  % claw up
+        elseif manualKeys.x
+            brick.MoveMotor(clawMotor, -clawSpeed); % claw down
+        else
+            brick.StopMotor(clawMotor);
+        end
+
     else
         %% --- Autonomous Mode ---
         leftDist = brick.UltrasonicDist(usLeftPort);
@@ -62,52 +77,47 @@ while true
             pause(1.2);
             brick.MoveMotor('AB', forwardSpeed);
         elseif leftDist > openSpaceThreshold
-        % Large open area on left — make a full left turn
-        disp('Open space detected on left! Turning left...');
-        pause(0.2);
-        
-        brick.StopMotor('AB');
-        pause(0.2);
-        
-        brick.MoveMotor(leftMotor, -turnSpeed);
-        brick.MoveMotor(rightMotor, turnSpeed);
-        pause(1.2);  % Adjust turn angle
-        
-        brick.MoveMotor('AB', forwardSpeed);
-        pause(2);
-        
-    elseif leftDist > closeDistanceThreshold
-        % Slightly open — veer left gently
-        disp('Left distance moderate → veering left...');
-        pause(0.5);
-        
-        brick.MoveMotor(leftMotor, forwardSpeed - 5); % slower left motor
-        brick.MoveMotor(rightMotor, forwardSpeed);    % faster right motor
-        pause(0.1);
-        
-    else
-        % Path clear — move straight ahead
-        brick.MoveMotor('AB', forwardSpeed);s
+            disp('Open space detected on left! Turning left...');
+            pause(0.7);
+            brick.StopMotor('AB');
+            pause(0.5);
+            brick.MoveMotor(leftMotor, turnSpeed - 20);
+            brick.MoveMotor(rightMotor, turnSpeed + 20);
+            pause(1.5);
+            brick.MoveMotor('AB', forwardSpeed);
+            pause(2);
+        elseif leftDist > closeDistanceThreshold
+            brick.MoveMotor(leftMotor, forwardSpeed);
+            brick.MoveMotor(rightMotor, forwardSpeed);
+            pause(0.5);
+        else
+            brick.MoveMotor('A', forwardSpeed + 1);
+            brick.MoveMotor('B', forwardSpeed);
         end
     end
-    pause(0.05); % loop delay
+
+    pause(0.05);
 end
 
-%% --- Key Press Functions ---
-function keyPress(src,event)
+%% --- Key Functions ---
+function keyPress(~,event)
     switch event.Key
         case 'w', evalin('base','manualKeys.w=true;');
         case 'a', evalin('base','manualKeys.a=true;');
         case 's', evalin('base','manualKeys.s=true;');
         case 'd', evalin('base','manualKeys.d=true;');
+        case 'z', evalin('base','manualKeys.z=true;'); % claw up
+        case 'x', evalin('base','manualKeys.x=true;'); % claw down
     end
 end
 
-function keyRelease(src,event)
+function keyRelease(~,event)
     switch event.Key
         case 'w', evalin('base','manualKeys.w=false;');
         case 'a', evalin('base','manualKeys.a=false;');
         case 's', evalin('base','manualKeys.s=false;');
         case 'd', evalin('base','manualKeys.d=false;');
+        case 'z', evalin('base','manualKeys.z=false;');
+        case 'x', evalin('base','manualKeys.x=false;');
     end
 end
