@@ -9,7 +9,7 @@ usLeftPort = 1;
 touchRightPort = 3;
 colorPort = 2;
 
-brick.SetColorMode(colorPort,2);
+%brick.SetColorMode(colorPort,2);
 
 %% --- Motor Settings ---
 forwardSpeed = 40;
@@ -33,7 +33,7 @@ disp('🤖 Running robot...');
 %% --- Main Loop ---
 while true
     colorcheck = brick.ColorCode(colorPort);
-
+    if colorcheck == 5, brick.StopAllMotors(); pause(1); end
 
     if ismember(colorcheck,[2,3,4]) % --- Manual mode only ---
         
@@ -82,7 +82,7 @@ while true
             brick.StopMotor('AB');
             pause(0.5);
             brick.MoveMotor(leftMotor, turnSpeed - 20);
-            brick.MoveMotor(rightMotor, turnSpeed + 20);
+            brick.MoveMotor(rightMotor, turnSpeed + 15.5);
             pause(1.5);
             brick.MoveMotor('AB', forwardSpeed);
             pause(2);
@@ -91,7 +91,7 @@ while true
             brick.MoveMotor(rightMotor, forwardSpeed);
             pause(0.5);
         else
-            brick.MoveMotor('A', forwardSpeed + 1);
+            brick.MoveMotor('A', forwardSpeed + 0.8);
             brick.MoveMotor('B', forwardSpeed);
         end
     end
