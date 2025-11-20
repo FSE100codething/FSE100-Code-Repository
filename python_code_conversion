@@ -1,0 +1,167 @@
+import time
+import threading
+from pynput import keyboard
+from ev3dev2.motor import LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C, SpeedPercent
+from ev3dev2.sensor.lego import UltrasonicSensor, TouchSensor, ColorSensor
+from ev3dev2.sensor import INPUT_1, INPUT_2, INPUT_3
+
+# --- Initialize Motors ---
+left_motor = LargeMotor(OUTPUT_A)
+right_motor = LargeMotor(OUTPUT_B)
+claw_motor = LargeMotor(OUTPUT_C)
+
+# --- Initialize Sensors ---
+us_left = UltrasonicSensor(INPUT_1)
+touch_right = TouchSensor(INPUT_3)
+color_sensor = ColorSensor(INPUT_2)
+color_sensor.mode = 'COL-COLOR'
+
+# --- Motor Settings ---
+forward_speed = 40
+turn_speed = 20
+manual_speed = 20
+claw_speed = 15
+
+# --- Ultrasonic Thresholds ---
+open_space_threshold = 70
+close_distance_threshold = 50
+
+# --- Manual Keys Dictionary ---
+manual_keys = {
+    'w': False, 'a': False, 's': False, 'd': False,
+    'z': False, 'x': False  # z = claw up, x = claw down
+}
+
+# Thread-safe lock for manual_keys
+keys_lock = threading.Lock()
+
+# --- Keyboard Event Handlers ---
+def on_press(key):
+    try:
+        k = key.char
+        with keys_lock:
+            if k in manual_keys:
+                manual_keys[k] = True
+    except AttributeError:
+        pass
+
+def on_release(key):
+    try:
+        k = key.char
+        with keys_lock:
+            if k in manual_keys:
+                manual_keys[k] = False
+    except AttributeError:
+        pass
+
+# Start keyboard listener
+listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+listener.start()
+
+print('🤖 Running robot...')
+
+# --- Main Loop ---
+try:
+    while True:
+        try:
+            color_check = color_sensor.color
+        except Exception as e:
+            print(f'⚠️ Color sensor error: {e}')
+            time.sleep(0.1)
+            continue
+        
+        # Stop on red (color 5)
+        if color_check == 5:
+            left_motor.stop()
+            right_motor.stop()
+            claw_motor.stop()
+            time.sleep(1)
+            continue
+        
+        # Manual mode (colors 2=blue, 3=green, 4=yellow)
+        if color_check in [2, 3, 4]:
+            with keys_lock:
+                # Drive control
+                if manual_keys['w']:
+                    left_motor.on(SpeedPercent(manual_speed))
+                    right_motor.on(SpeedPercent(manual_speed))
+                elif manual_keys['s']:
+                    left_motor.on(SpeedPercent(-manual_speed))
+                    right_motor.on(SpeedPercent(-manual_speed))
+                elif manual_keys['a']:
+                    left_motor.on(SpeedPercent(-manual_speed))
+                    right_motor.on(SpeedPercent(manual_speed))
+                elif manual_keys['d']:
+                    left_motor.on(SpeedPercent(manual_speed))
+                    right_motor.on(SpeedPercent(-manual_speed))
+                else:
+                    left_motor.stop()
+                    right_motor.stop()
+                
+                # Claw control
+                if manual_keys['z']:
+                    claw_motor.on(SpeedPercent(claw_speed))
+                elif manual_keys['x']:
+                    claw_motor.on(SpeedPercent(-claw_speed))
+                else:
+                    claw_motor.stop()
+        
+        else:
+            # --- Autonomous Mode ---
+            try:
+                left_dist = us_left.distance_centimeters
+                touch_pressed = touch_right.is_pressed
+            except Exception as e:
+                print(f'⚠️ Sensor error: {e}')
+                time.sleep(0.1)
+                continue
+            
+            if touch_pressed:
+                # Stop and back up
+                left_motor.stop()
+                right_motor.stop()
+                time.sleep(0.2)
+                left_motor.on(SpeedPercent(-forward_speed))
+                right_motor.on(SpeedPercent(-forward_speed))
+                time.sleep(1)
+                # Turn right
+                left_motor.on(SpeedPercent(turn_speed))
+                right_motor.on(SpeedPercent(-turn_speed))
+                time.sleep(1.2)
+                # Move forward
+                left_motor.on(SpeedPercent(forward_speed))
+                right_motor.on(SpeedPercent(forward_speed))
+            
+            elif left_dist > open_space_threshold:
+                print('Open space detected on left! Turning left...')
+                time.sleep(0.7)
+                left_motor.stop()
+                right_motor.stop()
+                time.sleep(0.5)
+                # Turn left (note: different speeds from MATLAB)
+                left_motor.on(SpeedPercent(turn_speed - 20))
+                right_motor.on(SpeedPercent(turn_speed + 15.5))
+                time.sleep(1.5)
+                # Move forward
+                left_motor.on(SpeedPercent(forward_speed))
+                right_motor.on(SpeedPercent(forward_speed))
+                time.sleep(2)
+            
+            elif left_dist > close_distance_threshold:
+                left_motor.on(SpeedPercent(forward_speed))
+                right_motor.on(SpeedPercent(forward_speed))
+                time.sleep(0.5)
+            
+            else:
+                # Slight right turn
+                left_motor.on(SpeedPercent(forward_speed + 0.8))
+                right_motor.on(SpeedPercent(forward_speed))
+        
+        time.sleep(0.05)
+
+except KeyboardInterrupt:
+    print('\n🛑 Stopping robot...')
+    left_motor.stop()
+    right_motor.stop()
+    claw_motor.stop()
+    listener.stop()
